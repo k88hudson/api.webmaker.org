@@ -170,6 +170,15 @@ exports.register = function(server, options, done) {
     return reachRegex.test(value);
   }
 
+  function replaceValue(data, key, actionIndex, txResults) {
+    var replaceResult = {};
+    data[key] = data[key].replace(
+      reachRegex,
+      getReplaceFunc(replaceResult, key, actionIndex, txResults)
+    );
+    return replaceResult;
+  }
+
   // check if a key on the action object should be resolved to a value
   // returned by a previous action in the transaction
   function reachForData(data, actionIndex, txResults) {
@@ -180,12 +189,7 @@ exports.register = function(server, options, done) {
       return true;
     }
 
-    var replaceResult = {};
-    data[key] = data[key].replace(
-      reachRegex,
-      getReplaceFunc(replaceResult, key, actionIndex, txResults)
-    );
-    return replaceResult;
+    return replaceValue(data, key, actionIndex, txResults);
   }
 
   // Check if the key has been processed already,
