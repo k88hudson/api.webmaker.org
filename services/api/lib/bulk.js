@@ -116,7 +116,6 @@ exports.register = function(server, options, done) {
     return function replace(match, reachIdx, reachString) {
       reachIdx = +reachIdx;
       var value;
-
       if ( reachIdx < txResults.length ) {
         value = Hoek.reach(txResults[reachIdx].formatted, reachString);
       } else {
@@ -129,7 +128,6 @@ exports.register = function(server, options, done) {
         };
         return;
       }
-
       if ( !value ) {
         processResult.invalid = true;
         processResult.errorReason = 'Invalid reference to value using key \'' +
@@ -152,21 +150,39 @@ exports.register = function(server, options, done) {
   // 0th index and the value on that object keyed with 'id'
   var reachRegex = /^\$(\d+)\.(.*)$/;
 
+  var pipelineKeys = [
+    'id',
+    'projectId',
+    'pageId'
+  ];
+
   // check if a key on the action object should be resolved to a value
   // returned by a previous action in the transaction
-  function generateForEachCallback(processResult, action, actionIndex, txResults) {
-    return function everyCallback(key) {
-      // if the key's value isn't a reach string, return valid
-      if ( !reachRegex.test(action.data[key]) ) {
-        return processResult;
-      }
+  function reachForData(action, actionIndex, txResults) {
+    var key;
 
-      action.data[key] = action.data[key].replace(
-        reachRegex,
-        getReplaceFunc(processResult, key, actionIndex, txResults)
-      );
-      return processResult;
-    };
+    for (var i = 0; i < pipelineKeys.length; i++) {
+      if (action.data[pipelineKeys[i]]) {
+        key = pipelineKeys[i];
+        continue;
+      }
+    }
+
+    if (!key) {
+      return true;
+    }
+
+    // if the key's value isn't a reach string, return valid
+    if ( !reachRegex.test(action.data[key]) ) {
+      return true;
+    }
+
+    var replaceResult = {};
+    action.data[key] = action.data[key].replace(
+      reachRegex,
+      getReplaceFunc(replaceResult, key, actionIndex, txResults)
+    );
+    return replaceResult;
   }
 
   // Check if the key has been processed already,
@@ -347,7 +363,7 @@ exports.register = function(server, options, done) {
   server.method('bulk.getLookupData', getLookupData, { callback: false });
   server.method('bulk.getTxActionResult', getTxActionResult, { callback: false });
   server.method('bulk.getQueryValues', getQueryValues, { callback: false });
-  server.method('bulk.generateForEachCallback', generateForEachCallback, { callback: false });
+  server.method('bulk.reachForData', reachForData, { callback: false });
   server.method('bulk.invalidateCaches', invalidateCaches, { callback: false });
   done();
 };

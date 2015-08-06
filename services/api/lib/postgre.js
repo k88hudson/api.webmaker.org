@@ -314,24 +314,16 @@ module.exports = function (pg) {
         function reduceActions(results, action, actionIndex) {
           // return a Promise of the result of a transaction for this action
           return new BPromise(function(resolve, reject) {
-            var processResult = {
-              invalid: false
-            };
-
-            // Check every key of the action's data to see if it should be replaced with
-            // the result of a previous action.
-            var dataKeys = Object.keys(action.data);
-            server.methods.newrelic.createTracer('pipelining action data', dataKeys.forEach);
-            dataKeys.forEach(
-              server.methods.bulk.generateForEachCallback(processResult, action, actionIndex, results)
-            );
+            // Check the action's data to see if it ids should be replaced with the results of a previous action.
+            server.methods.newrelic.createTracer('pipelining action data', server.methods.bulk.reachForData);
+            var reachResult = server.methods.bulk.reachForData(action, actionIndex, results);
 
             // if true, everyActionKey() encountered a problem processing data and set
             // the error details to errorReason and failureData
-            if ( processResult.invalid ) {
+            if ( reachResult.invalid ) {
               return reject(Boom.badRequest(
-                processResult.errorReason,
-                processResult.failureData
+                reachResult.errorReason,
+                reachResult.failureData
               ));
             }
 
