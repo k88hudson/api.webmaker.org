@@ -116,6 +116,7 @@ exports.register = function(server, options, done) {
     return function replace(match, reachIdx, reachString) {
       reachIdx = +reachIdx;
       var value;
+
       if ( reachIdx < txResults.length ) {
         value = Hoek.reach(txResults[reachIdx].formatted, reachString);
       } else {
@@ -128,6 +129,7 @@ exports.register = function(server, options, done) {
         };
         return;
       }
+
       if ( !value ) {
         processResult.invalid = true;
         processResult.errorReason = 'Invalid reference to value using key \'' +
