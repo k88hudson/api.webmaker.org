@@ -158,29 +158,30 @@ exports.register = function(server, options, done) {
     'pageId'
   ];
 
-  // check if a key on the action object should be resolved to a value
-  // returned by a previous action in the transaction
-  function reachForData(action, actionIndex, txResults) {
-    var key;
-
+  function getIdKey(data) {
     for (var i = 0; i < pipelineKeys.length; i++) {
-      if (action.data[pipelineKeys[i]]) {
-        key = pipelineKeys[i];
-        break;
+      if (data[pipelineKeys[i]]) {
+        return pipelineKeys[i];
       }
     }
+  }
 
-    if (!key) {
-      return true;
-    }
+  function isReachString(value) {
+    return reachRegex.test(value);
+  }
+
+  // check if a key on the action object should be resolved to a value
+  // returned by a previous action in the transaction
+  function reachForData(data, actionIndex, txResults) {
+    var key = getIdKey(data);
 
     // if the key's value isn't a reach string, return valid
-    if ( !reachRegex.test(action.data[key]) ) {
+    if ( !key || !isReachString(data[key]) ) {
       return true;
     }
 
     var replaceResult = {};
-    action.data[key] = action.data[key].replace(
+    data[key] = data[key].replace(
       reachRegex,
       getReplaceFunc(replaceResult, key, actionIndex, txResults)
     );

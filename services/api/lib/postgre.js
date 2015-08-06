@@ -316,7 +316,7 @@ module.exports = function (pg) {
           return new BPromise(function(resolve, reject) {
             // Check the action's data to see if it ids should be replaced with the results of a previous action.
             server.methods.newrelic.createTracer('pipelining action data', server.methods.bulk.reachForData);
-            var reachResult = server.methods.bulk.reachForData(action, actionIndex, results);
+            var reachResult = server.methods.bulk.reachForData(action.data, actionIndex, results);
 
             // if true, everyActionKey() encountered a problem processing data and set
             // the error details to errorReason and failureData
