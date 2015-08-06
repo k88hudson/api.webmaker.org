@@ -110,44 +110,6 @@ exports.register = function(server, options, done) {
     }
   }
 
-  function getReplaceFunc(processResult, key, actionIndex, txResults) {
-    // grab the index of the action results to reach into, and grab the value
-    // described by reachString using Hoek.reach()
-    return function replace(match, reachIdx, reachString) {
-      reachIdx = +reachIdx;
-      var value;
-
-      if ( reachIdx < txResults.length ) {
-        value = Hoek.reach(txResults[reachIdx].formatted, reachString);
-      } else {
-        processResult.invalid = true;
-        processResult.errorReason = 'Array reference out of bounds for ' + key + ' in action at index ' + actionIndex;
-        processResult.failureData = {
-          key: key,
-          reachIdx: reachIdx,
-          actionIndex: actionIndex
-        };
-        return;
-      }
-
-      if ( !value ) {
-        processResult.invalid = true;
-        processResult.errorReason = 'Invalid reference to value using key \'' +
-          key +
-          '\' in action at index ' +
-          actionIndex;
-        processResult.failureData = {
-          key: key,
-          reachIdx: reachIdx,
-          actionIndex: actionIndex
-        };
-        return;
-      }
-
-      return value;
-    };
-  }
-
   // matches string like '$0.id' where '$0' is the action result at the
   // 0th index and the value on that object keyed with 'id'
   var reachRegex = /^\$(\d+)\.(.*)$/;
@@ -170,26 +132,55 @@ exports.register = function(server, options, done) {
     return reachRegex.test(value);
   }
 
-  function replaceValue(data, key, actionIndex, txResults) {
-    var replaceResult = {};
-    data[key] = data[key].replace(
-      reachRegex,
-      getReplaceFunc(replaceResult, key, actionIndex, txResults)
-    );
-    return replaceResult;
+  function getReachValue(data, key, actionIndex, txResults) {
+    var regexResuts = reachRegex.exec(data[key]);
+    var reachIdx = +regexResuts[1];
+    var reachString = regexResuts[2];
+    var value;
+
+    if ( reachIdx >= txResults.length ) {
+      return {
+        invalid: true,
+        errorReason: 'Array reference out of bounds for ' + key + ' in action at index ' + actionIndex,
+        failureData: {
+          key: key,
+          reachIdx: reachIdx,
+          actionIndex: actionIndex
+        }
+      };
+    }
+
+    value = Hoek.reach(txResults[reachIdx].formatted, reachString);
+
+    if ( !value ) {
+      return {
+        invalid: true,
+        errorReason: 'Invalid reference to value using key \'' + key + '\' in action at index ' + actionIndex,
+        failureData: {
+          key: key,
+          reachIdx: reachIdx,
+          actionIndex: actionIndex
+        }
+      };
+    }
+
+    return {
+      key: key,
+      value: value
+    };
   }
 
   // check if a key on the action object should be resolved to a value
   // returned by a previous action in the transaction
-  function reachForData(data, actionIndex, txResults) {
+  function getResourceId(data, actionIndex, txResults) {
     var key = getIdKey(data);
 
     // if the key's value isn't a reach string, return valid
-    if ( !key || !isReachString(data[key]) ) {
+    if (!key || !isReachString(data[key])) {
       return true;
     }
 
-    return replaceValue(data, key, actionIndex, txResults);
+    return getReachValue(data, key, actionIndex, txResults);
   }
 
   // Check if the key has been processed already,
@@ -370,7 +361,7 @@ exports.register = function(server, options, done) {
   server.method('bulk.getLookupData', getLookupData, { callback: false });
   server.method('bulk.getTxActionResult', getTxActionResult, { callback: false });
   server.method('bulk.getQueryValues', getQueryValues, { callback: false });
-  server.method('bulk.reachForData', reachForData, { callback: false });
+  server.method('bulk.getResourceId', getResourceId, { callback: false });
   server.method('bulk.invalidateCaches', invalidateCaches, { callback: false });
   done();
 };

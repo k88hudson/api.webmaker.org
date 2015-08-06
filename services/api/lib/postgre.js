@@ -315,17 +315,19 @@ module.exports = function (pg) {
           // return a Promise of the result of a transaction for this action
           return new BPromise(function(resolve, reject) {
             // Check the action's data to see if it ids should be replaced with the results of a previous action.
-            server.methods.newrelic.createTracer('pipelining action data', server.methods.bulk.reachForData);
-            var reachResult = server.methods.bulk.reachForData(action.data, actionIndex, results);
+            server.methods.newrelic.createTracer('pipelining action data', server.methods.bulk.getResourceId);
+            var pipelineResult = server.methods.bulk.getResourceId(action.data, actionIndex, results);
 
             // if true, everyActionKey() encountered a problem processing data and set
             // the error details to errorReason and failureData
-            if ( reachResult.invalid ) {
+            if ( pipelineResult.invalid ) {
               return reject(Boom.badRequest(
-                reachResult.errorReason,
-                reachResult.failureData
+                pipelineResult.errorReason,
+                pipelineResult.failureData
               ));
             }
+
+            action.data[pipelineResult.key] = pipelineResult.value;
 
             // select query to execute for thie action based on type and method params
             var query = queries[action.type][action.method];
