@@ -166,7 +166,7 @@ exports.register = function(server, options, done) {
     for (var i = 0; i < pipelineKeys.length; i++) {
       if (action.data[pipelineKeys[i]]) {
         key = pipelineKeys[i];
-        continue;
+        break;
       }
     }
 
